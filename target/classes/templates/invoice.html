@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice - BusGo</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<nav class="navbar no-print">
+    <div class="nav-brand"><a href="/search">🚌 BusGo</a></div>
+    <div class="nav-links">
+        <a href="/search" class="nav-link">Search</a>
+        <a href="/history" class="nav-link">My Bookings</a>
+    </div>
+    <div class="nav-auth">
+        <a href="/logout" class="btn btn-outline">Logout</a>
+    </div>
+</nav>
+
+<div class="invoice-page">
+    <!-- Success Banner -->
+    <div class="success-banner no-print" id="successBanner">
+        <span>🎉</span>
+        <div>
+            <h3>Booking Confirmed!</h3>
+            <p>Your ticket has been booked successfully.</p>
+        </div>
+    </div>
+
+    <!-- Invoice -->
+    <div class="invoice-container" id="invoiceContent">
+        <div id="invoiceLoading" class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading invoice...</p>
+        </div>
+        <div id="invoiceBody" style="display:none">
+            <!-- Header -->
+            <div class="invoice-header">
+                <div class="invoice-logo">
+                    <h1>🚌 BusGo</h1>
+                    <p>Your Journey, Our Priority</p>
+                </div>
+                <div class="invoice-title">
+                    <h2>BOOKING INVOICE</h2>
+                    <p>Booking ID: <strong id="inv-bookingId"></strong></p>
+                    <p>Status: <strong id="inv-status" class="badge"></strong></p>
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <!-- Booking Details Grid -->
+            <div class="invoice-grid">
+                <div class="inv-section">
+                    <h4>🚌 Bus Details</h4>
+                    <table class="inv-table">
+                        <tr><td>Bus Name:</td><td id="inv-busName"></td></tr>
+                        <tr><td>Bus Number:</td><td id="inv-busNumber"></td></tr>
+                        <tr><td>Departure:</td><td id="inv-departure"></td></tr>
+                        <tr><td>Arrival:</td><td id="inv-arrival"></td></tr>
+                    </table>
+                </div>
+                <div class="inv-section">
+                    <h4>📍 Journey Details</h4>
+                    <table class="inv-table">
+                        <tr><td>From:</td><td id="inv-source"></td></tr>
+                        <tr><td>To:</td><td id="inv-destination"></td></tr>
+                        <tr><td>Boarding:</td><td id="inv-boarding"></td></tr>
+                        <tr><td>Dropping:</td><td id="inv-dropping"></td></tr>
+                    </table>
+                </div>
+                <div class="inv-section">
+                    <h4>📅 Dates</h4>
+                    <table class="inv-table">
+                        <tr><td>Travel Date:</td><td id="inv-travelDate"></td></tr>
+                        <tr><td>Booking Date:</td><td id="inv-bookingDate"></td></tr>
+                        <tr><td>Seats:</td><td id="inv-seats"></td></tr>
+                    </table>
+                </div>
+                <div class="inv-section">
+                    <h4>👤 Passenger Info</h4>
+                    <table class="inv-table">
+                        <tr><td>Name:</td><td id="inv-userName"></td></tr>
+                        <tr><td>Email:</td><td id="inv-userEmail"></td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Passenger List -->
+            <div class="inv-passenger-section">
+                <h4>👥 Passenger Details</h4>
+                <table class="passenger-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Seat</th>
+                            <th>Berth</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inv-passengerTable"></tbody>
+                </table>
+            </div>
+
+            <!-- Fare -->
+            <div class="inv-fare-section">
+                <div class="fare-total-box">
+                    <span>Total Amount Paid</span>
+                    <strong id="inv-totalFare" class="big-fare"></strong>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="invoice-footer">
+                <p>Thank you for choosing BusGo! Have a safe journey.</p>
+                <p>For support: support@busgo.in | 1800-BUSGO</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="invoice-actions no-print">
+        <button class="btn btn-primary" onclick="window.print()">🖨️ Download / Print Invoice</button>
+        <a href="/history" class="btn btn-secondary">📋 View All Bookings</a>
+        <a href="/search" class="btn btn-outline">🔍 Book Another Ticket</a>
+    </div>
+</div>
+
+<script th:src="@{/js/app.js}"></script>
+<script>
+const reservationId = new URLSearchParams(window.location.search).get('id');
+
+async function loadInvoice() {
+    try {
+        const res = await fetch(`/api/reservation/${reservationId}`);
+        if (res.status === 401) { window.location.href = '/login'; return; }
+        const data = await res.json();
+
+        document.getElementById('inv-bookingId').textContent = `#BG${String(data.id).padStart(6,'0')}`;
+        const statusEl = document.getElementById('inv-status');
+        statusEl.textContent = data.status;
+        statusEl.className = `badge ${data.status === 'CONFIRMED' ? 'badge-success' : 'badge-danger'}`;
+
+        document.getElementById('inv-busName').textContent = data.busName;
+        document.getElementById('inv-busNumber').textContent = data.busNumber;
+        document.getElementById('inv-departure').textContent = data.departureTime;
+        document.getElementById('inv-arrival').textContent = data.arrivalTime;
+        document.getElementById('inv-source').textContent = data.source;
+        document.getElementById('inv-destination').textContent = data.destination;
+        document.getElementById('inv-boarding').textContent = data.boardingPoint;
+        document.getElementById('inv-dropping').textContent = data.droppingPoint;
+        document.getElementById('inv-travelDate').textContent = new Date(data.travelDate).toLocaleDateString('en-IN', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
+        document.getElementById('inv-bookingDate').textContent = new Date(data.bookingDate).toLocaleString('en-IN');
+        document.getElementById('inv-seats').textContent = data.seatsBooked;
+        document.getElementById('inv-userName').textContent = data.userName;
+        document.getElementById('inv-userEmail').textContent = data.userEmail;
+        document.getElementById('inv-totalFare').textContent = `₹${data.totalFare.toFixed(2)}`;
+
+        const tbody = document.getElementById('inv-passengerTable');
+        (data.passengers || []).forEach((p, i) => {
+            tbody.innerHTML += `<tr>
+                <td>${i+1}</td>
+                <td>${p.name}</td>
+                <td><span class="badge ${p.type==='ADULT'?'badge-primary':p.type==='CHILD'?'badge-warning':'badge-info'}">${p.type}</span></td>
+                <td>${p.seatNumber}</td>
+                <td>${p.seatType}</td>
+            </tr>`;
+        });
+
+        document.getElementById('invoiceLoading').style.display = 'none';
+        document.getElementById('invoiceBody').style.display = 'block';
+    } catch (e) {
+        document.getElementById('invoiceLoading').innerHTML = '<p>Failed to load invoice. <a href="/history">View bookings</a></p>';
+    }
+}
+
+loadInvoice();
+</script>
+</body>
+</html>

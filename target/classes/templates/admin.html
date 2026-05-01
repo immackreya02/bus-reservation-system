@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - BusGo</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #38bdf8;
+            --accent-dark: #0ea5e9;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --success-bg: #14532d;
+            --success-text: #86efac;
+            --danger-bg: #7f1d1d;
+            --danger-text: #fca5a5;
+            --primary: #38bdf8;
+        }
+        body { background: var(--bg); color: var(--text); }
+        .navbar { background: #0f172a; border-bottom: 1px solid var(--border); box-shadow: 0 2px 12px rgba(0,0,0,0.4); }
+        .nav-brand a { color: var(--accent); }
+        .nav-link { color: var(--text-muted); }
+        .nav-link:hover, .nav-link.active { background: rgba(56,189,248,0.12); color: var(--accent); }
+        .user-greeting { color: var(--text); }
+        .btn-outline { color: var(--accent); border-color: var(--accent); }
+        .btn-outline:hover { background: var(--accent); color: #0f172a; }
+        .btn-primary { background: var(--accent); color: #0f172a; font-weight: 700; }
+        .btn-primary:hover { background: var(--accent-dark); }
+
+        .admin-page { padding: 80px 1.5rem 2rem; max-width: 1200px; margin: 0 auto; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .tab-content h2 { color: var(--accent); font-size: 1.4rem; margin-bottom: 1.25rem; }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
+        .stat-card {
+            background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
+            padding: 1.25rem; text-align: center;
+        }
+        .stat-icon { font-size: 1.8rem; margin-bottom: 0.5rem; }
+        .stat-value { font-size: 1.6rem; font-weight: 800; color: var(--accent); }
+        .stat-label { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+        /* Admin Section */
+        .admin-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; }
+        .admin-section-header h2 { margin: 0; }
+        .admin-form {
+            background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
+            padding: 1.5rem; margin-bottom: 1.25rem;
+        }
+        .admin-form h3 { color: var(--accent); margin-bottom: 1rem; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-weight: 600; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.04em; }
+        input[type="text"], input[type="number"], input[type="date"], select {
+            width: 100%; background: #0f172a; border: 1.5px solid var(--border);
+            color: var(--text); border-radius: 8px; padding: 0.6rem 0.9rem; font-size: 0.9rem;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(56,189,248,0.1); }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.7; }
+        select option { background: #1e293b; }
+        .checkbox-group { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.35rem; }
+        .checkbox-group label { color: var(--text); font-size: 0.9rem; font-weight: 500; text-transform: none; letter-spacing: 0; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; }
+
+        /* Admin Table */
+        .admin-list { overflow-x: auto; }
+        .admin-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        .admin-table thead tr { background: #0f172a; }
+        .admin-table th { padding: 0.75rem 1rem; text-align: left; color: var(--text-muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
+        .admin-table td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+        .admin-table tbody tr { background: var(--card-bg); transition: background 0.15s; }
+        .admin-table tbody tr:hover { background: rgba(56,189,248,0.04); }
+        .admin-table td small { color: var(--text-muted); font-size: 0.78rem; }
+
+        /* Date filter bar */
+        .date-filter-bar {
+            background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
+            padding: 0.9rem 1.1rem; display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;
+        }
+        .date-filter-bar .filter-group { display: flex; flex-direction: column; gap: 0.25rem; flex: 1; min-width: 130px; }
+        .date-filter-bar label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .date-filter-bar input[type="date"] { width: 100%; }
+        .filter-actions { display: flex; gap: 0.5rem; }
+        .btn-filter { background: var(--accent); color: #0f172a; border: none; padding: 0.52rem 1.1rem; border-radius: 7px; font-weight: 700; cursor: pointer; font-size: 0.85rem; transition: background 0.2s; }
+        .btn-filter:hover { background: var(--accent-dark); }
+        .btn-clear { background: transparent; color: var(--text-muted); border: 1.5px solid var(--border); padding: 0.52rem 0.9rem; border-radius: 7px; font-weight: 600; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
+        .btn-clear:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Search */
+        .search-filter { margin-bottom: 1rem; }
+        .search-filter input {
+            width: 100%; background: #0f172a; border: 1.5px solid var(--border); color: var(--text);
+            border-radius: 8px; padding: 0.65rem 1rem; font-size: 0.9rem;
+        }
+        .search-filter input:focus { outline: none; border-color: var(--accent); }
+
+        /* Filter note */
+        .filter-note { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.75rem; }
+        .filter-note span { color: var(--accent); font-weight: 600; }
+
+        /* Ratings */
+        .ratings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+        .rating-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+        .rating-card h4 { color: var(--text); font-size: 1rem; margin-bottom: 0.5rem; }
+        .rating-card h4 small { color: var(--text-muted); font-weight: 400; }
+        .avg-rating { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+        .rating-num { font-size: 1.3rem; font-weight: 800; color: var(--accent); }
+        .rating-count { color: var(--text-muted); font-size: 0.82rem; }
+        .reviews-list { border-top: 1px solid var(--border); padding-top: 0.75rem; }
+        .review-item { font-size: 0.84rem; color: var(--text-muted); margin-bottom: 0.4rem; }
+        .review-item strong { color: var(--text); }
+        .no-reviews { color: var(--text-muted); font-size: 0.85rem; }
+
+        .badge { display: inline-block; padding: 0.2rem 0.65rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+        .badge-success { background: var(--success-bg); color: var(--success-text); }
+        .badge-danger { background: var(--danger-bg); color: var(--danger-text); }
+
+        .btn-sm { padding: 0.35rem 0.85rem; font-size: 0.8rem; border-radius: 7px; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.55rem 1.2rem; border-radius: 8px; border: 2px solid transparent; cursor: pointer; font-weight: 600; font-size: 0.88rem; transition: all 0.2s; }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand"><a href="/search">🚌 BusGo Admin</a></div>
+    <div class="nav-links">
+        <a href="#" class="nav-link active" onclick="showTab('dashboard', event)">Dashboard</a>
+        <a href="#" class="nav-link" onclick="showTab('routes', event)">Routes</a>
+        <a href="#" class="nav-link" onclick="showTab('buses', event)">Buses</a>
+        <a href="#" class="nav-link" onclick="showTab('reservations', event)">Reservations</a>
+        <a href="#" class="nav-link" onclick="showTab('ratings', event)">Ratings</a>
+    </div>
+    <div class="nav-auth">
+        <span class="user-greeting">Admin Panel</span>
+        <a href="/logout" class="btn btn-outline">Logout</a>
+    </div>
+</nav>
+
+<div class="admin-page">
+    <!-- Dashboard Tab -->
+    <div id="tab-dashboard" class="tab-content active">
+        <h2>📊 Dashboard</h2>
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card"><div class="stat-label">Loading...</div></div>
+        </div>
+    </div>
+
+    <!-- Routes Tab -->
+    <div id="tab-routes" class="tab-content">
+        <div class="admin-section-header">
+            <h2>🗺️ Manage Routes</h2>
+            <button class="btn btn-primary" onclick="toggleForm('addRouteForm')">+ Add Route</button>
+        </div>
+        <div id="addRouteForm" class="admin-form" style="display:none">
+            <h3>Add Route</h3>
+            <div class="form-row">
+                <div class="form-group"><label>Source City</label><input type="text" id="r-source" placeholder="e.g., Chennai"></div>
+                <div class="form-group"><label>Destination City</label><input type="text" id="r-dest" placeholder="e.g., Bangalore"></div>
+            </div>
+            <div class="form-group">
+                <label>Boarding Points (comma-separated)</label>
+                <input type="text" id="r-boarding" placeholder="e.g., Central Station, Airport">
+            </div>
+            <div class="form-group">
+                <label>Dropping Points (comma-separated)</label>
+                <input type="text" id="r-dropping" placeholder="e.g., Silk Board, Majestic">
+            </div>
+            <div style="display:flex;gap:0.75rem">
+                <button class="btn btn-primary" onclick="addRoute()">Save Route</button>
+                <button class="btn btn-outline" onclick="toggleForm('addRouteForm')">Cancel</button>
+            </div>
+        </div>
+        <div id="routesList" class="admin-list">Loading routes...</div>
+    </div>
+
+    <!-- Buses Tab -->
+    <div id="tab-buses" class="tab-content">
+        <div class="admin-section-header">
+            <h2>🚌 Manage Buses</h2>
+            <button class="btn btn-primary" onclick="toggleForm('addBusForm')">+ Add Bus</button>
+        </div>
+        <div id="addBusForm" class="admin-form" style="display:none">
+            <h3>Add Bus</h3>
+            <div class="form-row">
+                <div class="form-group"><label>Route</label>
+                    <select id="b-route"><option value="">Select Route</option></select>
+                </div>
+                <div class="form-group"><label>Bus Name</label><input type="text" id="b-name" placeholder="e.g., KPN Travels"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Bus Number</label><input type="text" id="b-number" placeholder="e.g., TN01AB1234"></div>
+                <div class="form-group"><label>Base Price (₹)</label><input type="number" id="b-price" placeholder="e.g., 800"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Total Seats</label><input type="number" id="b-seats" placeholder="e.g., 40" min="10" max="60"></div>
+                <div class="form-group"><label>Amenities</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" value="AC"> AC</label>
+                        <label><input type="checkbox" value="WIFI"> WiFi</label>
+                        <label><input type="checkbox" value="CHARGING"> Charging</label>
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Departure Time</label><input type="text" id="b-departure" placeholder="e.g., 09:00 PM"></div>
+                <div class="form-group"><label>Arrival Time</label><input type="text" id="b-arrival" placeholder="e.g., 05:00 AM"></div>
+            </div>
+            <div style="display:flex;gap:0.75rem">
+                <button class="btn btn-primary" onclick="addBus()">Save Bus</button>
+                <button class="btn btn-outline" onclick="toggleForm('addBusForm')">Cancel</button>
+            </div>
+        </div>
+        <div id="busesList" class="admin-list">Loading buses...</div>
+    </div>
+
+    <!-- Reservations Tab -->
+    <div id="tab-reservations" class="tab-content">
+        <h2>📋 All Reservations</h2>
+
+        <!-- Date Range Filter -->
+        <div class="date-filter-bar">
+            <div class="filter-group">
+                <label>Start Date (Travel Date)</label>
+                <input type="date" id="adminStartDate">
+            </div>
+            <div class="filter-group">
+                <label>End Date (Travel Date)</label>
+                <input type="date" id="adminEndDate">
+            </div>
+            <div class="filter-actions">
+                <button class="btn-filter" onclick="applyAdminDateFilter()">🔍 Filter</button>
+                <button class="btn-clear" onclick="clearAdminFilter()">✕ Clear</button>
+            </div>
+        </div>
+        <div id="adminFilterNote" class="filter-note" style="display:none"></div>
+
+        <!-- Text Search -->
+        <div class="search-filter">
+            <input type="text" id="reservationSearch" placeholder="🔎 Search by name, bus, route..." oninput="filterReservations()">
+        </div>
+
+        <div id="reservationsList" class="admin-list">Loading...</div>
+    </div>
+
+    <!-- Ratings Tab -->
+    <div id="tab-ratings" class="tab-content">
+        <h2>⭐ Bus Ratings Report</h2>
+        <div id="ratingsList" class="admin-list">Loading...</div>
+    </div>
+</div>
+
+<script th:src="@{/js/app.js}"></script>
+<script>
+let allRoutes = [];
+let allReservations = [];
+
+function showTab(name, event) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById(`tab-${name}`).classList.add('active');
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    if (event && event.target) event.target.classList.add('active');
+    if (name === 'dashboard') loadDashboard();
+    if (name === 'routes') loadRoutes();
+    if (name === 'buses') loadBuses();
+    if (name === 'reservations') loadReservations();
+    if (name === 'ratings') loadRatings();
+}
+
+function toggleForm(id) {
+    const el = document.getElementById(id);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function loadDashboard() {
+    const res = await fetch('/api/admin/revenue');
+    const data = await res.json();
+    document.getElementById('statsGrid').innerHTML = `
+        <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-value">₹${data.totalRevenue?.toFixed(0) || 0}</div><div class="stat-label">Total Revenue</div></div>
+        <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-value">${data.confirmedBookings}</div><div class="stat-label">Confirmed Bookings</div></div>
+        <div class="stat-card"><div class="stat-icon">❌</div><div class="stat-value">${data.cancelledBookings}</div><div class="stat-label">Cancelled Bookings</div></div>
+        <div class="stat-card"><div class="stat-icon">📊</div><div class="stat-value">${data.totalBookings}</div><div class="stat-label">Total Bookings</div></div>`;
+}
+
+async function loadRoutes() {
+    const res = await fetch('/api/routes');
+    allRoutes = await res.json();
+    const el = document.getElementById('routesList');
+    if (!allRoutes.length) { el.innerHTML = '<p style="color:var(--text-muted)">No routes added yet.</p>'; return; }
+    el.innerHTML = `<table class="admin-table">
+        <thead><tr><th>#</th><th>Source</th><th>Destination</th><th>Boarding Points</th><th>Dropping Points</th></tr></thead>
+        <tbody>${allRoutes.map(r => `<tr>
+            <td>${r.id}</td><td>${r.source}</td><td>${r.destination}</td>
+            <td>${r.boardingPoints}</td><td>${r.droppingPoints}</td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+async function loadBuses() {
+    if (!allRoutes.length) {
+        const rRes = await fetch('/api/routes');
+        allRoutes = await rRes.json();
+    }
+    const routeSel = document.getElementById('b-route');
+    routeSel.innerHTML = '<option value="">Select Route</option>' +
+        allRoutes.map(r => `<option value="${r.id}">${r.source} → ${r.destination}</option>`).join('');
+
+    const res = await fetch('/api/buses');
+    const buses = await res.json();
+    const el = document.getElementById('busesList');
+    if (!buses.length) { el.innerHTML = '<p style="color:var(--text-muted)">No buses added yet.</p>'; return; }
+    el.innerHTML = `<table class="admin-table">
+        <thead><tr><th>#</th><th>Bus Name</th><th>Number</th><th>Route</th><th>Price</th><th>Seats</th><th>Amenities</th><th>Timings</th></tr></thead>
+        <tbody>${buses.map(b => `<tr>
+            <td>${b.id}</td><td>${b.busName}</td><td>${b.busNumber}</td>
+            <td>${b.route?.source || ''} → ${b.route?.destination || ''}</td>
+            <td>₹${b.price}</td><td>${b.totalSeats}</td>
+            <td>${b.amenities || ''}</td>
+            <td>${b.departureTime} - ${b.arrivalTime}</td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+// Load reservations — optionally with date range filter
+async function loadReservations(startDate, endDate) {
+    let url = '/api/admin/reservations';
+    if (startDate && endDate) {
+        url += `?startDate=${startDate}&endDate=${endDate}`;
+    }
+    const res = await fetch(url);
+    allReservations = await res.json();
+    filterReservations();
+}
+
+function applyAdminDateFilter() {
+    const startDate = document.getElementById('adminStartDate').value;
+    const endDate = document.getElementById('adminEndDate').value;
+    if (!startDate || !endDate) { showToast('Please select both dates', 'error'); return; }
+    if (startDate > endDate) { showToast('Start date must be before end date', 'error'); return; }
+    const noteEl = document.getElementById('adminFilterNote');
+    noteEl.style.display = 'block';
+    noteEl.innerHTML = `Showing reservations with travel date between <span>${formatDate(startDate)}</span> and <span>${formatDate(endDate)}</span>`;
+    loadReservations(startDate, endDate);
+}
+
+function clearAdminFilter() {
+    document.getElementById('adminStartDate').value = '';
+    document.getElementById('adminEndDate').value = '';
+    document.getElementById('adminFilterNote').style.display = 'none';
+    loadReservations();
+}
+
+function formatDate(d) {
+    return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function filterReservations() {
+    const q = document.getElementById('reservationSearch').value.toLowerCase();
+    const filtered = allReservations.filter(r =>
+        r.userName?.toLowerCase().includes(q) ||
+        r.busName?.toLowerCase().includes(q) ||
+        r.source?.toLowerCase().includes(q) ||
+        r.destination?.toLowerCase().includes(q)
+    );
+    renderReservations(filtered);
+}
+
+function renderReservations(list) {
+    const el = document.getElementById('reservationsList');
+    if (!list.length) { el.innerHTML = '<p style="color:var(--text-muted)">No reservations found.</p>'; return; }
+    el.innerHTML = `<table class="admin-table">
+        <thead><tr><th>ID</th><th>Customer</th><th>Bus</th><th>Route</th><th>Travel Date</th><th>Booking Date</th><th>Seats</th><th>Fare</th><th>Status</th></tr></thead>
+        <tbody>${list.map(r => `<tr>
+            <td>#BG${String(r.id).padStart(6,'0')}</td>
+            <td>${r.userName}<br><small>${r.userEmail}</small></td>
+            <td>${r.busName}</td>
+            <td>${r.source} → ${r.destination}</td>
+            <td>${new Date(r.travelDate + 'T00:00:00').toLocaleDateString('en-IN')}</td>
+            <td>${new Date(r.bookingDate).toLocaleDateString('en-IN')}</td>
+            <td>${r.seatsBooked}</td>
+            <td>₹${r.totalFare}</td>
+            <td><span class="badge ${r.status==='CONFIRMED'?'badge-success':'badge-danger'}">${r.status}</span></td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+async function loadRatings() {
+    const res = await fetch('/api/admin/ratings');
+    const ratings = await res.json();
+    const el = document.getElementById('ratingsList');
+    el.innerHTML = `<div class="ratings-grid">${ratings.map(b => `
+        <div class="rating-card">
+            <h4>${b.busName} <small>(${b.busNumber})</small></h4>
+            <div class="avg-rating">
+                <span class="big-star">⭐</span>
+                <span class="rating-num">${b.averageRating}/5</span>
+                <span class="rating-count">(${b.totalRatings} review${b.totalRatings !== 1 ? 's' : ''})</span>
+            </div>
+            ${b.ratings.length ? `<div class="reviews-list">
+                ${b.ratings.map(r => `<div class="review-item">
+                    <strong>${r.user}</strong>: ${'⭐'.repeat(r.rating)} ${r.comment ? `<em>"${r.comment}"</em>` : ''}
+                </div>`).join('')}
+            </div>` : '<p class="no-reviews">No reviews yet</p>'}
+        </div>`).join('')}</div>`;
+}
+
+async function addRoute() {
+    const source = document.getElementById('r-source').value.trim();
+    const destination = document.getElementById('r-dest').value.trim();
+    const boardingPoints = document.getElementById('r-boarding').value.trim();
+    const droppingPoints = document.getElementById('r-dropping').value.trim();
+    if (!source || !destination || !boardingPoints || !droppingPoints) {
+        showToast('All fields are required', 'error'); return;
+    }
+    const res = await fetch('/api/admin/route', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source, destination, boardingPoints, droppingPoints })
+    });
+    if (res.ok) {
+        showToast('Route added successfully! ✅', 'success');
+        toggleForm('addRouteForm');
+        loadRoutes();
+    } else {
+        const d = await res.json();
+        showToast(d.error || 'Failed to add route', 'error');
+    }
+}
+
+async function addBus() {
+    const amenities = Array.from(document.querySelectorAll('.checkbox-group input:checked')).map(c => c.value).join(',');
+    const payload = {
+        routeId: document.getElementById('b-route').value,
+        busName: document.getElementById('b-name').value.trim(),
+        busNumber: document.getElementById('b-number').value.trim(),
+        price: document.getElementById('b-price').value,
+        totalSeats: document.getElementById('b-seats').value,
+        amenities,
+        departureTime: document.getElementById('b-departure').value.trim(),
+        arrivalTime: document.getElementById('b-arrival').value.trim()
+    };
+    if (!payload.routeId || !payload.busName || !payload.price) {
+        showToast('Fill all required fields', 'error'); return;
+    }
+    const res = await fetch('/api/admin/bus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+        showToast('Bus added successfully! ✅', 'success');
+        toggleForm('addBusForm');
+        loadBuses();
+    } else {
+        const d = await res.json();
+        showToast(d.error || 'Failed to add bus', 'error');
+    }
+}
+
+loadDashboard();
+</script>
+</body>
+</html>

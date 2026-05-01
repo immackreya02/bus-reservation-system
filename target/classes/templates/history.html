@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Bookings - BusGo</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #38bdf8;
+            --accent-dark: #0ea5e9;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --success-bg: #14532d;
+            --success-text: #86efac;
+            --danger-bg: #7f1d1d;
+            --danger-text: #fca5a5;
+            --primary: #38bdf8;
+            --primary-dark: #0ea5e9;
+        }
+        body { background: var(--bg); color: var(--text); }
+        .navbar { background: #0f172a; border-bottom: 1px solid var(--border); box-shadow: 0 2px 12px rgba(0,0,0,0.4); }
+        .nav-brand a { color: var(--accent); }
+        .nav-link { color: var(--text-muted); }
+        .nav-link:hover, .nav-link.active { background: rgba(56,189,248,0.12); color: var(--accent); }
+        .user-greeting { color: var(--text); }
+        .btn-outline { color: var(--accent); border-color: var(--accent); }
+        .btn-outline:hover { background: var(--accent); color: #0f172a; }
+        .btn-primary { background: var(--accent); color: #0f172a; font-weight: 700; }
+        .btn-primary:hover { background: var(--accent-dark); }
+
+        .history-page { padding: 90px 1.5rem 2rem; max-width: 1000px; margin: 0 auto; }
+
+        .page-header { margin-bottom: 1.5rem; }
+        .page-header h1 { font-size: 1.8rem; font-weight: 800; color: var(--accent); margin-bottom: 0.25rem; }
+        .page-header p { color: var(--text-muted); font-size: 0.95rem; }
+
+        /* Date Filter Bar */
+        .date-filter-bar {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: flex-end;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.25rem;
+        }
+        .date-filter-bar .filter-group { display: flex; flex-direction: column; gap: 0.3rem; flex: 1; min-width: 140px; }
+        .date-filter-bar label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .date-filter-bar input[type="date"] {
+            background: #0f172a; border: 1.5px solid var(--border); color: var(--text);
+            border-radius: 8px; padding: 0.5rem 0.75rem; font-size: 0.9rem;
+            width: 100%;
+        }
+        .date-filter-bar input[type="date"]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(56,189,248,0.15); }
+        .date-filter-bar input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.7; }
+        .filter-actions { display: flex; gap: 0.5rem; }
+        .btn-filter { background: var(--accent); color: #0f172a; border: none; padding: 0.55rem 1.2rem; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.9rem; transition: background 0.2s; }
+        .btn-filter:hover { background: var(--accent-dark); }
+        .btn-clear { background: transparent; color: var(--text-muted); border: 1.5px solid var(--border); padding: 0.55rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+        .btn-clear:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Filter result note */
+        .filter-note { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; }
+        .filter-note span { color: var(--accent); font-weight: 600; }
+
+        /* Tabs */
+        .filter-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+        .tab-btn {
+            padding: 0.45rem 1.1rem; border-radius: 20px; border: 1.5px solid var(--border);
+            background: transparent; color: var(--text-muted); font-weight: 600; cursor: pointer;
+            font-size: 0.85rem; transition: all 0.2s;
+        }
+        .tab-btn.active, .tab-btn:hover { background: var(--accent); color: #0f172a; border-color: var(--accent); }
+
+        /* Booking Cards */
+        .booking-card {
+            background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 12px; margin-bottom: 1rem; overflow: hidden;
+            transition: box-shadow 0.2s;
+        }
+        .booking-card:hover { box-shadow: 0 4px 20px rgba(56,189,248,0.1); }
+        .cancelled-card { opacity: 0.75; border-color: #4b1c1c; }
+
+        .booking-card-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--border);
+            background: rgba(255,255,255,0.02);
+        }
+        .booking-id h3 { font-size: 1rem; font-weight: 700; color: var(--accent); margin: 0; display: inline; margin-right: 0.6rem; }
+        .booking-dates { display: flex; gap: 1rem; font-size: 0.82rem; color: var(--text-muted); }
+
+        .booking-card-body { display: flex; gap: 1.5rem; padding: 1rem 1.25rem; flex-wrap: wrap; }
+        .booking-route { flex: 1; min-width: 200px; }
+        .booking-route h4 { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 0.4rem; }
+        .booking-route h4 small { color: var(--text-muted); font-weight: 400; }
+        .route-display { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.95rem; color: var(--text); margin-bottom: 0.4rem; }
+        .route-arrow { color: var(--accent); }
+        .journey-points { display: flex; gap: 1rem; font-size: 0.82rem; color: var(--text-muted); }
+
+        .booking-details { display: flex; flex-direction: column; gap: 0.35rem; justify-content: center; }
+        .detail-item { font-size: 0.85rem; color: var(--text-muted); }
+        .detail-item strong { color: var(--text); }
+        .fare-highlight strong { color: var(--accent); font-size: 1rem; }
+
+        .booking-card-footer {
+            padding: 0.75rem 1.25rem; border-top: 1px solid var(--border);
+            display: flex; gap: 0.6rem; flex-wrap: wrap; background: rgba(0,0,0,0.1);
+        }
+
+        .badge { display: inline-block; padding: 0.2rem 0.7rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; }
+        .badge-success { background: var(--success-bg); color: var(--success-text); }
+        .badge-danger { background: var(--danger-bg); color: var(--danger-text); }
+
+        /* Loading & empty */
+        .loading-spinner { text-align: center; padding: 3rem; color: var(--text-muted); }
+        .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .no-results { text-align: center; padding: 3rem; color: var(--text-muted); }
+        .no-results span { font-size: 2.5rem; display: block; margin-bottom: 0.75rem; }
+        .no-results h3 { color: var(--text); margin-bottom: 0.5rem; }
+        .no-results a { color: var(--accent); }
+
+        /* Rating Modal */
+        .modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            display: flex; align-items: center; justify-content: center; z-index: 2000;
+        }
+        .modal-content {
+            background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 14px; padding: 2rem; max-width: 420px; width: 90%;
+        }
+        .modal-content h3 { color: var(--accent); margin-bottom: 0.5rem; }
+        .modal-content p { color: var(--text-muted); margin-bottom: 1rem; }
+        .star-rating { display: flex; gap: 0.5rem; font-size: 2rem; margin-bottom: 0.5rem; cursor: pointer; }
+        .star-rating span { color: var(--border); transition: color 0.15s; }
+        .rating-label { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem; }
+        textarea { background: #0f172a; border: 1.5px solid var(--border); color: var(--text); border-radius: 8px; width: 100%; padding: 0.7rem; font-size: 0.9rem; margin-bottom: 1rem; resize: vertical; }
+        textarea:focus { outline: none; border-color: var(--accent); }
+        .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+
+        .btn-sm { padding: 0.35rem 0.85rem; font-size: 0.8rem; border-radius: 7px; }
+        .btn-secondary { background: #334155; color: var(--text); border: none; cursor: pointer; font-weight: 600; transition: background 0.2s; }
+        .btn-secondary:hover { background: #475569; }
+        .btn-danger { background: #7f1d1d; color: #fca5a5; border: none; cursor: pointer; font-weight: 600; transition: background 0.2s; }
+        .btn-danger:hover { background: #991b1b; }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand"><a href="/search">🚌 BusGo</a></div>
+    <div class="nav-links">
+        <a href="/search" class="nav-link">Search</a>
+        <a href="/history" class="nav-link active">My Bookings</a>
+        <a href="/profile" class="nav-link">Profile</a>
+    </div>
+    <div class="nav-auth">
+        <span id="userGreeting" class="user-greeting"></span>
+        <a href="/logout" class="btn btn-outline">Logout</a>
+    </div>
+</nav>
+
+<div class="history-page">
+    <div class="page-header">
+        <h1>🎫 My Bookings</h1>
+        <p>Track and manage all your travel history</p>
+    </div>
+
+    <!-- Date Range Filter -->
+    <div class="date-filter-bar">
+        <div class="filter-group">
+            <label>Start Date</label>
+            <input type="date" id="startDate">
+        </div>
+        <div class="filter-group">
+            <label>End Date</label>
+            <input type="date" id="endDate">
+        </div>
+        <div class="filter-actions">
+            <button class="btn-filter" onclick="applyDateFilter()">🔍 Filter</button>
+            <button class="btn-clear" onclick="clearFilter()">✕ Clear</button>
+        </div>
+    </div>
+
+    <div id="filterNote" class="filter-note" style="display:none"></div>
+
+    <div class="filter-tabs">
+        <button class="tab-btn active" onclick="filterByStatus('ALL', event)">All</button>
+        <button class="tab-btn" onclick="filterByStatus('CONFIRMED', event)">Confirmed</button>
+        <button class="tab-btn" onclick="filterByStatus('CANCELLED', event)">Cancelled</button>
+    </div>
+
+    <div id="loadingSpinner" class="loading-spinner">
+        <div class="spinner"></div>
+        <p>Loading bookings...</p>
+    </div>
+
+    <div id="bookingList"></div>
+</div>
+
+<!-- Rating Modal -->
+<div id="ratingModal" class="modal" style="display:none">
+    <div class="modal-content">
+        <h3>⭐ Rate Your Journey</h3>
+        <p id="ratingBusName"></p>
+        <div class="star-rating" id="starRating">
+            <span onclick="setRating(1)">★</span>
+            <span onclick="setRating(2)">★</span>
+            <span onclick="setRating(3)">★</span>
+            <span onclick="setRating(4)">★</span>
+            <span onclick="setRating(5)">★</span>
+        </div>
+        <p id="ratingLabel" class="rating-label">Click to rate</p>
+        <textarea id="ratingComment" placeholder="Write a comment (optional)" rows="3"></textarea>
+        <div class="modal-actions">
+            <button class="btn btn-outline btn-sm" onclick="closeRatingModal()">Cancel</button>
+            <button class="btn btn-primary btn-sm" onclick="submitRating()">Submit Rating</button>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/js/app.js}"></script>
+<script>
+let allBookings = [];
+let currentStatusFilter = 'ALL';
+let currentRatingBusId = null;
+let selectedRating = 0;
+const labels = ['', 'Terrible 😞', 'Poor 😐', 'Average 🙂', 'Good 😊', 'Excellent 🤩'];
+
+async function loadBookings(startDate, endDate) {
+    document.getElementById('loadingSpinner').style.display = 'block';
+    document.getElementById('bookingList').innerHTML = '';
+
+    const meRes = await fetch('/api/me');
+    if (meRes.status === 401) { window.location.href = '/login'; return; }
+    const me = await meRes.json();
+    document.getElementById('userGreeting').textContent = `Hello, ${me.name}`;
+
+    try {
+        let url = '/api/my-bookings';
+        if (startDate && endDate) {
+            url += `?startDate=${startDate}&endDate=${endDate}`;
+        }
+        const res = await fetch(url);
+        allBookings = await res.json();
+        applyStatusFilter();
+    } catch {
+        document.getElementById('bookingList').innerHTML = '<div class="no-results"><span>⚠️</span><p>Failed to load bookings</p></div>';
+    } finally {
+        document.getElementById('loadingSpinner').style.display = 'none';
+    }
+}
+
+function applyDateFilter() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    if (!startDate || !endDate) {
+        showToast('Please select both start and end dates', 'error');
+        return;
+    }
+    if (startDate > endDate) {
+        showToast('Start date must be before end date', 'error');
+        return;
+    }
+    const noteEl = document.getElementById('filterNote');
+    noteEl.style.display = 'block';
+    noteEl.innerHTML = `Showing bookings with travel date between <span>${formatDate(startDate)}</span> and <span>${formatDate(endDate)}</span>`;
+    loadBookings(startDate, endDate);
+}
+
+function clearFilter() {
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
+    document.getElementById('filterNote').style.display = 'none';
+    loadBookings();
+}
+
+function formatDate(d) {
+    return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function filterByStatus(status, event) {
+    currentStatusFilter = status;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    if (event && event.target) event.target.classList.add('active');
+    applyStatusFilter();
+}
+
+function applyStatusFilter() {
+    const filtered = currentStatusFilter === 'ALL'
+        ? allBookings
+        : allBookings.filter(b => b.status === currentStatusFilter);
+    renderBookings(filtered);
+}
+
+function renderBookings(bookings) {
+    const container = document.getElementById('bookingList');
+    if (!bookings || bookings.length === 0) {
+        container.innerHTML = `<div class="no-results">
+            <span>🎫</span>
+            <h3>No bookings found</h3>
+            <p><a href="/search">Search for buses</a> and make your first booking!</p>
+        </div>`;
+        return;
+    }
+
+    container.innerHTML = bookings.map(b => `
+        <div class="booking-card ${b.status === 'CANCELLED' ? 'cancelled-card' : ''}">
+            <div class="booking-card-header">
+                <div class="booking-id">
+                    <h3>#BG${String(b.id).padStart(6,'0')}</h3>
+                    <span class="badge ${b.status === 'CONFIRMED' ? 'badge-success' : 'badge-danger'}">${b.status}</span>
+                </div>
+                <div class="booking-dates">
+                    <span>✈️ Travel: ${new Date(b.travelDate + 'T00:00:00').toLocaleDateString('en-IN')}</span>
+                    <span>📅 Booked: ${new Date(b.bookingDate).toLocaleDateString('en-IN')}</span>
+                </div>
+            </div>
+            <div class="booking-card-body">
+                <div class="booking-route">
+                    <h4>${b.busName} <small>(${b.busNumber})</small></h4>
+                    <div class="route-display">
+                        <span>${b.source}</span>
+                        <span class="route-arrow">→</span>
+                        <span>${b.destination}</span>
+                    </div>
+                    <div class="journey-points">
+                        <span>🟢 ${b.boardingPoint}</span>
+                        <span>🔴 ${b.droppingPoint}</span>
+                    </div>
+                </div>
+                <div class="booking-details">
+                    <div class="detail-item">🪑 Seats: <strong>${b.seatsBooked}</strong></div>
+                    <div class="detail-item">👥 Passengers: <strong>${b.passengers?.length || 0}</strong></div>
+                    <div class="detail-item fare-highlight">💰 Total: <strong>₹${b.totalFare}</strong></div>
+                </div>
+            </div>
+            <div class="booking-card-footer">
+                <a href="/invoice?id=${b.id}" class="btn btn-outline btn-sm">🧾 Invoice</a>
+                ${b.status === 'CONFIRMED' ? `
+                    <button class="btn btn-danger btn-sm" onclick="cancelBooking(${b.id})">❌ Cancel</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openRating(${b.busId}, '${b.busName}')">⭐ Rate</button>
+                ` : ''}
+            </div>
+        </div>`).join('');
+}
+
+async function cancelBooking(id) {
+    if (!confirm('Are you sure you want to cancel this booking?')) return;
+    try {
+        const res = await fetch(`/api/cancel/${id}`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            showToast('Booking cancelled successfully', 'success');
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            loadBookings(startDate && endDate ? startDate : null, startDate && endDate ? endDate : null);
+        } else {
+            showToast(data.error || 'Cancellation failed', 'error');
+        }
+    } catch {
+        showToast('Error cancelling booking', 'error');
+    }
+}
+
+function openRating(busId, busName) {
+    currentRatingBusId = busId;
+    selectedRating = 0;
+    document.getElementById('ratingBusName').textContent = `Rate: ${busName}`;
+    document.getElementById('ratingComment').value = '';
+    document.getElementById('ratingLabel').textContent = 'Click a star to rate';
+    document.querySelectorAll('#starRating span').forEach(s => s.style.color = '#334155');
+    document.getElementById('ratingModal').style.display = 'flex';
+}
+
+function setRating(val) {
+    selectedRating = val;
+    document.getElementById('ratingLabel').textContent = labels[val];
+    document.querySelectorAll('#starRating span').forEach((s, i) => {
+        s.style.color = i < val ? '#FFD700' : '#334155';
+    });
+}
+
+function closeRatingModal() {
+    document.getElementById('ratingModal').style.display = 'none';
+}
+
+async function submitRating() {
+    if (selectedRating === 0) { showToast('Please select a rating', 'error'); return; }
+    try {
+        const res = await fetch('/api/rate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                busId: currentRatingBusId,
+                rating: selectedRating,
+                comment: document.getElementById('ratingComment').value
+            })
+        });
+        if (res.ok) {
+            showToast('Rating submitted! Thank you 🌟', 'success');
+            closeRatingModal();
+        } else {
+            showToast('Failed to submit rating', 'error');
+        }
+    } catch {
+        showToast('Error submitting rating', 'error');
+    }
+}
+
+loadBookings();
+</script>
+</body>
+</html>

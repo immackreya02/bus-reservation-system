@@ -1,0 +1,9 @@
+<settings>
+  <mirrors>
+    <mirror>
+      <id>google-maven</id>
+      <url>https://maven-central.storage.googleapis.com/</url>
+      <mirrorOf>central</mirrorOf>
+    </mirror>
+  </mirrors>
+</settings>

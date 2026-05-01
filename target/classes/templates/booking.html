@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Ticket - BusGo</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand"><a href="/search">🚌 BusGo</a></div>
+    <div class="nav-links">
+        <a href="/search" class="nav-link">Search</a>
+        <a href="/history" class="nav-link">My Bookings</a>
+    </div>
+    <div class="nav-auth">
+        <span id="userGreeting" class="user-greeting"></span>
+        <a href="/logout" class="btn btn-outline">Logout</a>
+    </div>
+</nav>
+
+<div class="booking-page">
+    <!-- Bus Info -->
+    <div class="booking-header">
+        <div id="busInfo" class="bus-summary-card">
+            <div class="loading-placeholder">Loading bus details...</div>
+        </div>
+    </div>
+
+    <div class="booking-layout">
+        <!-- LEFT: Seat Map -->
+        <div class="booking-left">
+            <div class="section-card">
+                <h3>🪑 Select Seats</h3>
+                <div class="seat-legend">
+                    <span class="legend-item"><span class="seat-demo available"></span> Available</span>
+                    <span class="legend-item"><span class="seat-demo booked"></span> Booked</span>
+                    <span class="legend-item"><span class="seat-demo selected"></span> Selected</span>
+                </div>
+                <div class="bus-diagram">
+                    <div class="bus-front">🚌 Driver</div>
+                    <div id="seatMap" class="seat-map"></div>
+                </div>
+                <div class="seat-type-note">
+                    <span>🔽 Lower berth: +20% price</span>
+                    <span>🔼 Upper berth: -10% price</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Booking Form -->
+        <div class="booking-right">
+            <!-- Travel Details -->
+            <div class="section-card">
+                <h3>📍 Journey Details</h3>
+                <div class="form-group">
+                    <label>Travel Date</label>
+                    <input type="text" id="travelDateDisplay" readonly class="readonly-field">
+                </div>
+                <div class="form-group">
+                    <label>Boarding Point</label>
+                    <select id="boardingPoint">
+                        <option value="">-- Select Boarding Point --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Dropping Point</label>
+                    <select id="droppingPoint">
+                        <option value="">-- Select Dropping Point --</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Passengers -->
+            <div class="section-card">
+                <h3>👥 Passenger Details</h3>
+                <div id="passengerList"></div>
+                <button class="btn btn-secondary btn-sm" onclick="addPassengerForm()" id="addPassengerBtn">+ Add Passenger</button>
+                <p class="hint-text">Passenger types: Adult (full fare) | Child (50% fare) | Infant (free)</p>
+            </div>
+            
+
+            <!-- Fare Summary -->
+            <div class="section-card fare-card">
+                <h3>💰 Fare Summary</h3>
+                <div id="fareSummary">
+                    <p class="hint-text">Select seats and add passengers to see fare</p>
+                </div>
+                <div class="fare-total" id="totalFareDisplay" style="display:none">
+                    <span>Total Fare:</span>
+                    <span id="totalFareAmount" class="total-amount">₹0</span>
+                </div>
+                <div class="booking-date-info">
+                    📅 Booking Date: <strong id="bookingDateDisplay"></strong>
+                </div>
+            </div>
+
+            <button class="btn btn-primary btn-full btn-book" onclick="confirmBooking()" id="bookBtn">
+                🎫 Confirm Booking
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirmModal" class="modal" style="display:none">
+    <div class="modal-content">
+        <h3>Confirm Your Booking</h3>
+        <div id="modalSummary"></div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeModal()">← Go Back</button>
+            <button class="btn btn-primary" onclick="submitBooking()" id="submitBtn">✅ Confirm & Pay</button>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/js/app.js}"></script>
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const busId = urlParams.get('busId');
+const travelDate = urlParams.get('date');
+let busData = null;
+let selectedSeats = [];
+let passengers = [];
+let allSeats = [];
+
+// Set booking date display
+document.getElementById('bookingDateDisplay').textContent = new Date().toLocaleString('en-IN');
+document.getElementById('travelDateDisplay').value = new Date(travelDate).toLocaleDateString('en-IN', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+});
+
+async function init() {
+    // Load user info
+    const meRes = await fetch('/api/me');
+    if (meRes.status === 401) { window.location.href = '/login'; return; }
+    const me = await meRes.json();
+    document.getElementById('userGreeting').textContent = `Hello, ${me.name}`;
+
+    // Load bus details
+    const busRes = await fetch(`/api/buses/${busId}`);
+    busData = await busRes.json();
+    renderBusInfo();
+    renderBoardingDropping();
+
+    // Load seats
+    const seatRes = await fetch(`/api/buses/${busId}/seats?date=${travelDate}`);
+    allSeats = await seatRes.json();
+    renderSeatMap();
+
+    // Add first passenger form
+    addPassengerForm();
+}
+
+function renderBusInfo() {
+    document.getElementById('busInfo').innerHTML = `
+        <div class="bus-summary">
+            <div class="summary-route">
+                <h2>${busData.busName}</h2>
+                <p>${busData.source} <strong>→</strong> ${busData.destination}</p>
+            </div>
+            <div class="summary-time">
+                <span>${busData.departureTime} → ${busData.arrivalTime}</span>
+            </div>
+            <div class="summary-date">
+                <span>🗓 ${new Date(travelDate).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'})}</span>
+            </div>
+            <div class="summary-price">
+                <span>Base: ₹${busData.price}/seat</span>
+            </div>
+        </div>`;
+}
+
+function renderBoardingDropping() {
+    const bp = document.getElementById('boardingPoint');
+    const dp = document.getElementById('droppingPoint');
+    (busData.boardingPoints || []).forEach(p => {
+        bp.innerHTML += `<option value="${p.trim()}">${p.trim()}</option>`;
+    });
+    (busData.droppingPoints || []).forEach(p => {
+        dp.innerHTML += `<option value="${p.trim()}">${p.trim()}</option>`;
+    });
+}
+
+function renderSeatMap() {
+    const map = document.getElementById('seatMap');
+    let html = '<div class="seat-grid">';
+    const lower = allSeats.filter(s => s.seatType === 'LOWER');
+    const upper = allSeats.filter(s => s.seatType === 'UPPER');
+
+    html += '<div class="seat-row-label">Lower Berths (🔽)</div>';
+    html += '<div class="seat-row">';
+    lower.forEach(s => {
+        const cls = s.isBooked ? 'seat booked' : 'seat available';
+        const price = busData.price * 1.2;
+        html += `<div class="${cls}" id="seat-${s.seatNumber}" 
+                 onclick="toggleSeat('${s.seatNumber}', '${s.seatType}', ${price.toFixed(0)})"
+                 title="Seat ${s.seatNumber} - Lower - ₹${price.toFixed(0)}">
+                 ${s.seatNumber}</div>`;
+    });
+    html += '</div>';
+
+    html += '<div class="seat-row-label">Upper Berths (🔼)</div>';
+    html += '<div class="seat-row">';
+    upper.forEach(s => {
+        const cls = s.isBooked ? 'seat booked' : 'seat available';
+        const price = busData.price * 0.9;
+        html += `<div class="${cls}" id="seat-${s.seatNumber}" 
+                 onclick="toggleSeat('${s.seatNumber}', '${s.seatType}', ${price.toFixed(0)})"
+                 title="Seat ${s.seatNumber} - Upper - ₹${price.toFixed(0)}">
+                 ${s.seatNumber}</div>`;
+    });
+    html += '</div></div>';
+    map.innerHTML = html;
+}
+
+function toggleSeat(seatNum, seatType, price) {
+    const seatEl = document.getElementById(`seat-${seatNum}`);
+    if (seatEl.classList.contains('booked')) return;
+
+    const idx = selectedSeats.findIndex(s => s.seatNumber === seatNum);
+    if (idx > -1) {
+        selectedSeats.splice(idx, 1);
+        seatEl.classList.remove('selected');
+        seatEl.classList.add('available');
+    } else {
+        if (selectedSeats.length >= passengers.length + 1 && passengers.length > 0) {
+            showToast('Add more passengers to select more seats', 'warning');
+            return;
+        }
+        selectedSeats.push({ seatNumber: seatNum, seatType, basePrice: price });
+        seatEl.classList.remove('available');
+        seatEl.classList.add('selected');
+    }
+    updatePassengerSeats();
+    calculateFare();
+}
+
+function addPassengerForm() {
+    const count = passengers.length;
+    const passengerListEl = document.getElementById('passengerList');
+
+    const div = document.createElement('div');
+    div.className = 'passenger-form';
+    div.id = `passenger-${count}`;
+    div.innerHTML = `
+        <div class="passenger-header">
+            <h4>Passenger ${count + 1}</h4>
+            ${count > 0 ? `<button class="btn-remove" onclick="removePassenger(${count})">✕</button>` : ''}
+        </div>
+        <div class="passenger-fields">
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="p-name-${count}" placeholder="Full name" oninput="calculateFare()">
+            </div>
+            <div class="form-group">
+                <label>Age</label>
+                <input type="number" id="p-age-${count}" placeholder="Age" min="0" max="120" oninput="updatePassengerType(${count})">
+            </div>
+            <div class="form-group">
+                <label>Type</label>
+                <select id="p-type-${count}" onchange="calculateFare()" disabled>
+                    <option value="ADULT">Adult</option>
+                    <option value="CHILD">Child</option>
+                    <option value="INFANT">Infant</option>
+                </select>
+            </div>
+        </div>`;
+    passengerListEl.appendChild(div);
+    passengers.push({ index: count });
+    calculateFare();
+}
+
+function updatePassengerType(idx) {
+    const age = parseInt(document.getElementById(`p-age-${idx}`)?.value || 25);
+    const typeEl = document.getElementById(`p-type-${idx}`);
+    if (!typeEl) return;
+    if (age < 2) typeEl.value = 'INFANT';
+    else if (age < 12) typeEl.value = 'CHILD';
+    else typeEl.value = 'ADULT';
+    calculateFare();
+}
+
+function removePassenger(idx) {
+    document.getElementById(`passenger-${idx}`)?.remove();
+    passengers.splice(idx, 1);
+    // Remove last selected seat if more seats than passengers
+    if (selectedSeats.length > passengers.length) {
+        const removed = selectedSeats.pop();
+        document.getElementById(`seat-${removed.seatNumber}`)?.classList.replace('selected', 'available');
+    }
+    calculateFare();
+}
+
+function updatePassengerSeats() {
+    // Auto-assign selected seats to passenger forms
+    selectedSeats.forEach((seat, i) => {
+        const seatInput = document.getElementById(`p-seat-${i}`);
+        if (seatInput) seatInput.value = seat.seatNumber;
+    });
+}
+
+function calculateFare() {
+    const passengerCount = document.querySelectorAll('.passenger-form').length;
+    if (selectedSeats.length === 0 || passengerCount === 0) {
+        document.getElementById('fareSummary').innerHTML = '<p class="hint-text">Select seats and add passengers to see fare</p>';
+        document.getElementById('totalFareDisplay').style.display = 'none';
+        return;
+    }
+
+    let total = 0;
+    let rows = '';
+    const minSeats = Math.min(selectedSeats.length, passengerCount);
+
+    for (let i = 0; i < minSeats; i++) {
+        const seat = selectedSeats[i];
+        const typeEl = document.getElementById(`p-type-${i}`);
+        if (!typeEl) continue;
+        const pType = typeEl.value;
+        let fare = seat.basePrice;
+        if (pType === 'CHILD') fare *= 0.5;
+        else if (pType === 'INFANT') fare = 0;
+        total += fare;
+        const pName = document.getElementById(`p-name-${i}`)?.value || `Passenger ${i+1}`;
+        rows += `<div class="fare-row">
+            <span>${pName} (Seat ${seat.seatNumber} - ${seat.seatType})</span>
+            <span>₹${fare.toFixed(0)} (${pType})</span>
+        </div>`;
+    }
+
+    document.getElementById('fareSummary').innerHTML = rows;
+    document.getElementById('totalFareDisplay').style.display = 'flex';
+    document.getElementById('totalFareAmount').textContent = `₹${total.toFixed(0)}`;
+}
+
+function confirmBooking() {
+    const boarding = document.getElementById('boardingPoint').value;
+    const dropping = document.getElementById('droppingPoint').value;
+    const passengerForms = document.querySelectorAll('.passenger-form');
+
+    if (!boarding || !dropping) { showToast('Select boarding and dropping points', 'error'); return; }
+    if (selectedSeats.length === 0) { showToast('Please select at least one seat', 'error'); return; }
+    if (passengerForms.length === 0) { showToast('Add at least one passenger', 'error'); return; }
+    if (selectedSeats.length !== passengerForms.length) {
+        showToast(`Select ${passengerForms.length} seat(s) for ${passengerForms.length} passenger(s)`, 'error');
+        return;
+    }
+
+    // Validate passenger names
+    let valid = true;
+    passengerForms.forEach((_, i) => {
+        const name = document.getElementById(`p-name-${i}`)?.value?.trim();
+        if (!name) { valid = false; }
+    });
+    if (!valid) { showToast('Enter names for all passengers', 'error'); return; }
+
+    // Show modal
+    const totalFare = document.getElementById('totalFareAmount').textContent;
+    document.getElementById('modalSummary').innerHTML = `
+        <table class="confirm-table">
+            <tr><td>Bus:</td><td>${busData.busName} (${busData.busNumber})</td></tr>
+            <tr><td>Route:</td><td>${busData.source} → ${busData.destination}</td></tr>
+            <tr><td>Travel Date:</td><td>${new Date(travelDate).toLocaleDateString('en-IN')}</td></tr>
+            <tr><td>Boarding:</td><td>${boarding}</td></tr>
+            <tr><td>Dropping:</td><td>${dropping}</td></tr>
+            <tr><td>Seats:</td><td>${selectedSeats.map(s=>s.seatNumber).join(', ')}</td></tr>
+            <tr><td>Passengers:</td><td>${passengerForms.length}</td></tr>
+            <tr class="total-row"><td><strong>Total Fare:</strong></td><td><strong>${totalFare}</strong></td></tr>
+        </table>`;
+    document.getElementById('confirmModal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('confirmModal').style.display = 'none';
+}
+
+async function submitBooking() {
+    document.getElementById('submitBtn').textContent = 'Processing...';
+    document.getElementById('submitBtn').disabled = true;
+
+    const passengerForms = document.querySelectorAll('.passenger-form');
+    const passengerData = [];
+    passengerForms.forEach((_, i) => {
+        passengerData.push({
+            name: document.getElementById(`p-name-${i}`)?.value?.trim() || '',
+            age: document.getElementById(`p-age-${i}`)?.value || '25',
+            type: document.getElementById(`p-type-${i}`)?.value || 'ADULT',
+            seatNumber: selectedSeats[i]?.seatNumber || '',
+            seatType: selectedSeats[i]?.seatType || ''
+        });
+    });
+
+    const totalFare = parseFloat(document.getElementById('totalFareAmount').textContent.replace('₹', ''));
+
+    const payload = {
+        busId,
+        travelDate,
+        boardingPoint: document.getElementById('boardingPoint').value,
+        droppingPoint: document.getElementById('droppingPoint').value,
+        passengers: passengerData,
+        totalFare
+    };
+
+    try {
+        const res = await fetch('/api/book', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+            closeModal();
+            showToast('Booking confirmed! 🎉', 'success');
+            setTimeout(() => window.location.href = `/invoice?id=${data.reservationId}`, 1500);
+        } else {
+            showToast(data.error || 'Booking failed', 'error');
+            document.getElementById('submitBtn').textContent = '✅ Confirm & Pay';
+            document.getElementById('submitBtn').disabled = false;
+        }
+    } catch {
+        showToast('Network error. Please try again.', 'error');
+        document.getElementById('submitBtn').textContent = '✅ Confirm & Pay';
+        document.getElementById('submitBtn').disabled = false;
+    }
+}
+
+init();
+</script>
+</body>
+</html>
